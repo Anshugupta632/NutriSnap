@@ -4,11 +4,12 @@ require('dotenv').config();
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-// Try these free vision models in order - if one is rate-limited, fall back to the next
+// Verified & currently working free vision models on OpenRouter
 const VISION_MODELS = [
-  'google/gemma-4-31b-it:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'google/gemini-2.0-flash-lite-preview-02-05:free',
+  'google/gemini-2.0-pro-exp-02-05:free',
+  'meta-llama/llama-3.2-11b-vision-instruct:free',
+  'qwen/qwen-2-vl-7b-instruct:free'
 ];
 
 if (!OPENROUTER_API_KEY) {
@@ -21,31 +22,28 @@ function fileToBase64DataUrl(filePath, mimeType) {
 }
 
 /**
- * Safely parses JSON from AI response
- * Throws meaningful error if malformed JSON
+ * Safely parses JSON from AI response even if wrapped in markdown code blocks
  */
 function parseAIJSON(responseText, context = 'meal analysis') {
-  const cleanedText = responseText.replace(/```json|```/g, '').trim();
-
-  if (!cleanedText) {
+  if (!responseText) {
     throw new Error('AI returned no response. Please try again.');
   }
+
+  // Extract raw JSON content between braces if markdown or extra text is present
+  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+  const cleanedText = jsonMatch ? jsonMatch[0].trim() : responseText.replace(/```json|```/g, '').trim();
 
   try {
     return JSON.parse(cleanedText);
   } catch (parseError) {
     console.error(`[${context}] JSON parse failed. Raw response:`, responseText);
     console.error(`[${context}] Cleaned text:`, cleanedText);
-    console.error(`[${context}] Parse error:`, parseError.message);
 
     if (cleanedText.includes('SAFETY') || cleanedText.includes('safety') || cleanedText.includes('blocked')) {
       throw new Error('Photo content violates safety policy. Try a different photo.');
     }
     if (cleanedText.includes('quota') || cleanedText.includes('rate limit')) {
       throw new Error('AI service is busy. Please try again later.');
-    }
-    if (!cleanedText.startsWith('{') || !cleanedText.endsWith('}')) {
-      throw new Error('AI response format is invalid. Please try again.');
     }
 
     throw new Error('Could not understand AI response. Please try again.');
@@ -89,11 +87,6 @@ async function tryOneModel(model, prompt, imageDataUrl) {
   return text;
 }
 
-/**
- * Tries each model in VISION_MODELS in order.
- * Falls through to the next on 429 (rate limit) or 5xx errors.
- * Any other error (e.g. 401 bad key) stops immediately.
- */
 async function callOpenRouterVision(prompt, imageDataUrl) {
   let lastError = null;
 
@@ -104,39 +97,38 @@ async function callOpenRouterVision(prompt, imageDataUrl) {
       lastError = err;
       console.error(`Vision model failed: ${model}`, err.status || '', err.rawBody || err.message);
 
-      const isRetryable = err.status === 429 || (err.status >= 500 && err.status < 600);
+      const isRetryable = err.status === 429 || (err.status >= 500 && err.status < 600) || err.status === 404;
       if (!isRetryable) {
-        break; // Non-retryable error (e.g. bad API key) - stop trying other models
+        break;
       }
-      // otherwise loop continues to next model
     }
   }
 
   console.error('All vision models failed. Last error:', lastError?.message);
-  throw new Error('AI service is busy right now. Please try again in a minute.');
+  throw new Error('AI vision service is currently busy. Please try again in a moment.');
 }
 
 async function analyzeMealPhoto(filePath, mimeType) {
-  const prompt = `You are an expert Indian nutritionist. Analyze this food photo and provide nutrition breakdown.
-Response ONLY in this JSON format, no extra text or markdown backticks:
+  const prompt = `You are an expert nutritionist specializing in Indian and global cuisines. Analyze this food image and provide an accurate nutrition breakdown.
+
+Respond strictly in raw JSON without any explanations or conversational text:
 {
   "items": [
     {
-      "name": "item name (e.g., Roti, Paneer Sabzi)",
-      "quantity": "amount (e.g., 2 pieces, 1 bowl)",
-      "calories": number,
-      "protein": number,
-      "carbs": number,
-      "fats": number,
-      "confidence_level": "high" or "medium" or "low"
+      "name": "Item name (e.g., Paneer Tikka, Chapati, Dal)",
+      "quantity": "Portion size (e.g., 2 pieces, 1 bowl)",
+      "calories": 250,
+      "protein": 12,
+      "carbs": 30,
+      "fats": 8,
+      "confidence_level": "high"
     }
   ],
-  "total_calories": number,
-  "total_protein": number,
-  "total_carbs": number,
-  "total_fats": number
-}
-If no food is visible or unclear, return empty items array.`;
+  "total_calories": 250,
+  "total_protein": 12,
+  "total_carbs": 30,
+  "total_fats": 8
+}`;
 
   const imageDataUrl = fileToBase64DataUrl(filePath, mimeType);
   const responseText = await callOpenRouterVision(prompt, imageDataUrl);

@@ -9,6 +9,7 @@ import CalorieCard from './components/CalorieCard';
 import MealDiary from './components/MealDiary';
 import WaterTracker from './components/WaterTracker';
 import ScanActionMenu from './components/ScanActionMenu';
+import ScanCamera from './components/ScanCamera';
 import FoodSearchModal from './components/FoodSearchModal';
 import QuickTextLoggerModal from './components/QuickTextLoggerModal';
 import UploadModal from './components/UploadModal';
@@ -19,7 +20,7 @@ import ProfileSetup from './components/ProfileSetup';
 import Login from './components/Login';
 
 // Services
-import { getTodaySummary, getAvatarStatus, getMealHistory, getStoredUser, logout } from './services/api';
+import { getAvatarStatus, getMealHistory, getStoredUser, logout } from './services/api';
 
 // Initial default Indian diet samples
 const INITIAL_DEMO_MEALS = [
@@ -76,6 +77,7 @@ export default function App() {
   const [isScanMenuOpen, setIsScanMenuOpen] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
+  const [isScanCameraOpen, setIsScanCameraOpen] = useState(false);
   const [isFoodSearchOpen, setIsFoodSearchOpen] = useState(false);
   const [isQuickTextOpen, setIsQuickTextOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState('lunch');
@@ -131,7 +133,7 @@ export default function App() {
     }
   };
 
-  // Login handler
+  // Handlers
   const handleLogin = (userData) => {
     setUser(userData);
     if (userData.body_type) {
@@ -142,21 +144,18 @@ export default function App() {
     }
   };
 
-  // Profile setup handler
   const handleProfileComplete = (userData) => {
     setUser((prev) => ({ ...prev, ...userData }));
     setView('main');
     loadBackendData();
   };
 
-  // Logout handler
   const handleLogout = () => {
     logout();
     setUser(null);
     setView('auth');
   };
 
-  // Celebrate with confetti
   const triggerConfetti = () => {
     confetti({
       particleCount: 50,
@@ -166,7 +165,6 @@ export default function App() {
     });
   };
 
-  // Add meal item
   const handleAddMeal = (newMeal) => {
     setMeals((prev) => [
       {
@@ -177,7 +175,6 @@ export default function App() {
       ...prev,
     ]);
 
-    // Boost avatar strength
     setAvatar((prev) => ({
       ...prev,
       stamina: Math.min(100, prev.stamina + 5),
@@ -187,12 +184,29 @@ export default function App() {
     triggerConfetti();
   };
 
-  // Delete meal
-  const handleDeleteMeal = (mealId) => {
-    setMeals((prev) => prev.filter((m, i) => (m.id !== mealId && i !== mealId)));
+  // AI Vision Camera Payload Handler
+  const handleCameraVisionScan = (visionResult) => {
+    const itemNames = visionResult.items?.length
+      ? visionResult.items.map((i) => i.name).join(', ')
+      : visionResult.itemNames || 'AI Vision Meal';
+
+    const scannedMeal = {
+      meal_type: visionResult.meal_type || activeSlot,
+      itemNames,
+      total_calories: Number(visionResult.total_calories || 0),
+      total_protein: Number(visionResult.total_protein || 0),
+      total_carbs: Number(visionResult.total_carbs || 0),
+      total_fats: Number(visionResult.total_fats || 0),
+    };
+
+    handleAddMeal(scannedMeal);
+    setIsScanCameraOpen(false);
   };
 
-  // Water tracking actions
+  const handleDeleteMeal = (mealId) => {
+    setMeals((prev) => prev.filter((m) => m.id !== mealId));
+  };
+
   const handleAddWater = (amount) => {
     setWaterMl((prev) => {
       const next = prev + amount;
@@ -207,7 +221,6 @@ export default function App() {
     setWaterMl((prev) => Math.max(0, prev - amount));
   };
 
-  // Quick slot actions from diary
   const handleAddFoodToSlot = (slotId) => {
     setActiveSlot(slotId);
     setIsFoodSearchOpen(true);
@@ -215,7 +228,7 @@ export default function App() {
 
   const handleSnapSlot = (slotId) => {
     setActiveSlot(slotId);
-    setIsPhotoModalOpen(true);
+    setIsScanCameraOpen(true);
   };
 
   if (checkingAuth) {
@@ -259,7 +272,7 @@ export default function App() {
           {/* Main Tab Content */}
           <main className="pt-4 pb-28">
             <AnimatePresence mode="wait">
-              {/* 1. DIARY / TODAY TAB */}
+              {/* 1. DIARY TAB */}
               {activeTab === 'diary' && (
                 <motion.div
                   key="diary"
@@ -269,7 +282,6 @@ export default function App() {
                   transition={{ duration: 0.2 }}
                   className="flex flex-col gap-5"
                 >
-                  {/* Calorie & Macro Target Ring Hero */}
                   <CalorieCard
                     totalCalories={totals.calories}
                     calorieTarget={targets.calorie}
@@ -281,7 +293,6 @@ export default function App() {
                     fatsTarget={targets.fats}
                   />
 
-                  {/* Water Hydration Card */}
                   <WaterTracker
                     waterMl={waterMl}
                     waterTarget={targets.water}
@@ -289,7 +300,6 @@ export default function App() {
                     onRemoveWater={handleRemoveWater}
                   />
 
-                  {/* 4 Categorized Meal Slots Diary */}
                   <MealDiary
                     meals={meals}
                     onAddFood={handleAddFoodToSlot}
@@ -299,7 +309,7 @@ export default function App() {
                 </motion.div>
               )}
 
-              {/* 2. FOOD HUB SEARCH TAB */}
+              {/* 2. FOOD SEARCH TAB */}
               {activeTab === 'search' && (
                 <motion.div
                   key="search"
@@ -312,9 +322,10 @@ export default function App() {
                   <div className="p-4 rounded-3xl bg-[#1A1C23]/90 border border-white/[0.08] shadow-md flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-bold text-cream">Indian Food Hub</h3>
-                      <p className="text-xs text-cream/50">Explore 500+ Indian dishes & fitness foods</p>
+                      <p className="text-xs text-cream/50">Explore dishes & fitness foods</p>
                     </div>
                     <button
+                      type="button"
                       onClick={() => setIsFoodSearchOpen(true)}
                       className="px-4 py-2 rounded-2xl bg-emerald-500 text-[#121316] font-bold text-xs shadow-md shadow-emerald-500/20 hover:brightness-110 cursor-pointer"
                     >
@@ -331,7 +342,7 @@ export default function App() {
                 </motion.div>
               )}
 
-              {/* 3. TRENDS & ANALYTICS TAB */}
+              {/* 3. ANALYTICS TAB */}
               {activeTab === 'analytics' && (
                 <motion.div
                   key="analytics"
@@ -352,7 +363,7 @@ export default function App() {
                 </motion.div>
               )}
 
-              {/* 4. 3D AVATAR & SOMATOTYPE RPG TAB */}
+              {/* 4. AVATAR RPG TAB */}
               {activeTab === 'avatar' && (
                 <motion.div
                   key="avatar"
@@ -371,14 +382,14 @@ export default function App() {
             </AnimatePresence>
           </main>
 
-          {/* Floating Bottom Navigation Dock */}
+          {/* Bottom Dock Navigation */}
           <BottomNav
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onOpenScanMenu={() => setIsScanMenuOpen(true)}
           />
 
-          {/* Central Scan Action Menu Sheet */}
+          {/* Modal Overlays */}
           <ScanActionMenu
             isOpen={isScanMenuOpen}
             onClose={() => setIsScanMenuOpen(false)}
@@ -386,9 +397,9 @@ export default function App() {
             onOpenLabelScanner={() => setIsLabelModalOpen(true)}
             onOpenQuickText={() => setIsQuickTextOpen(true)}
             onOpenFoodSearch={() => setIsFoodSearchOpen(true)}
+            onOpenScanCamera={() => setIsScanCameraOpen(true)}
           />
 
-          {/* AI Photo Scanner Modal */}
           <UploadModal
             isOpen={isPhotoModalOpen}
             onClose={() => setIsPhotoModalOpen(false)}
@@ -406,13 +417,18 @@ export default function App() {
             }}
           />
 
-          {/* Packaged Label & Nutri-Score Scanner Modal */}
           <LabelScannerModal
             isOpen={isLabelModalOpen}
             onClose={() => setIsLabelModalOpen(false)}
           />
 
-          {/* Food Search Modal */}
+          {isScanCameraOpen && (
+            <ScanCamera
+              onClose={() => setIsScanCameraOpen(false)}
+              onScan={handleCameraVisionScan}
+            />
+          )}
+
           {activeTab !== 'search' && (
             <FoodSearchModal
               isOpen={isFoodSearchOpen}
@@ -422,7 +438,6 @@ export default function App() {
             />
           )}
 
-          {/* Quick Text AI Logger Modal */}
           <QuickTextLoggerModal
             isOpen={isQuickTextOpen}
             onClose={() => setIsQuickTextOpen(false)}
