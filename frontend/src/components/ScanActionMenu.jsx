@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, ScanBarcode, MessageSquareText, Search, X, Sparkles, ArrowRight } from 'lucide-react';
+import ScanCamera from './ScanCamera';
 
 export default function ScanActionMenu({
   isOpen,
@@ -9,6 +10,7 @@ export default function ScanActionMenu({
   onOpenLabelScanner,
   onOpenQuickText,
   onOpenFoodSearch,
+  onOpenScanCamera,
 }) {
   if (!isOpen) return null;
 
@@ -46,7 +48,7 @@ export default function ScanActionMenu({
         onOpenQuickText();
       },
     },
-    {
+{
       title: 'Indian & Global Food Database',
       desc: 'Search 500+ verified Indian meals, rotis, curries, and fitness supplements.',
       icon: Search,
@@ -55,6 +57,17 @@ export default function ScanActionMenu({
       onClick: () => {
         onClose();
         onOpenFoodSearch();
+      },
+    },
+    {
+      title: 'Direct Camera Scan',
+      desc: 'Open camera and scan barcode or QR code directly',
+      icon: Camera,
+      gradient: 'from-emerald-500 to-emerald-400',
+      badge: 'BARCODE',
+      onClick: () => {
+        onClose();
+        onOpenScanCamera();
       },
     },
   ];
@@ -84,7 +97,7 @@ export default function ScanActionMenu({
           </button>
         </div>
 
-        <div className="flex flex-col gap-2.5 mt-4">
+<div className="flex flex-col gap-2.5 mt-4">
           {actions.map((act) => {
             const Icon = act.icon;
             return (
@@ -119,6 +132,37 @@ export default function ScanActionMenu({
               </motion.button>
             );
           })}
+
+          {onOpenScanCamera && (
+            <motion.button
+              key="direct-camera-scan"
+              whileHover={{ scale: 1.02, translateX: 4 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                onClose();
+                onOpenScanCamera();
+              }}
+              className="w-full text-left p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.15] transition-all flex items-center gap-3.5 group cursor-pointer"
+            >
+              <div className={`w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-emerald-400 p-[2px] shrink-0 shadow-md`}>
+                <div className="w-full h-full bg-[#121316] rounded-[14px] flex items-center justify-center text-white">
+                  <Camera className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-cream">Direct Camera Scan</h4>
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.08] text-cream/70 font-semibold shrink-0">BARCODE</span>
+                </div>
+                <p className="text-xs text-cream/50 mt-0.5 line-clamp-1">
+                  Open camera and scan barcode or QR code directly
+                </p>
+              </div>
+
+              <ArrowRight className="w-4 h-4 text-cream/30 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all shrink-0" />
+            </motion.button>
+          )}
         </div>
       </motion.div>
     </div>
