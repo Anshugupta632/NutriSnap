@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-steel: #121316;
+  --color-steel-light: #1A1C23;
+  --color-dabba: #232630;
+  --color-dabba-card: rgba(30, 34, 45, 0.75);
+  --color-haldi: #F59E0B;
+  --color-haldi-light: #FBBF24;
+  --color-masala: #EF4444;
+  --color-curry: #10B981;
+  --color-cyan-glow: #06B6D4;
+  --color-cream: #F8FAFC;
+  --color-muted: #94A3B8;
+
+  --font-display: "Outfit", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; filter: blur(40px); }
+  50% { opacity: 0.8; filter: blur(55px); }
+}
+
+@keyframes scan-beam {
+  0% { top: 0%; opacity: 0.9; }
+  50% { top: 100%; opacity: 1; }
+  100% { top: 0%; opacity: 0.9; }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 5s ease-in-out infinite;
+}
+
+.animate-scan-beam {
+  animation: scan-beam 2.2s ease-in-out infinite;
+}
+
+/* Custom modern scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(18, 19, 22, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+body {
+  background-color: #0d0f12;
+  color: #F8FAFC;
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism helpers */
+.glass-card {
+  background: rgba(26, 30, 40, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-hover:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}

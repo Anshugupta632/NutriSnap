@@ -1,0 +1,436 @@
+﻿import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
+
+// Components
+import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
+import CalorieCard from './components/CalorieCard';
+import MealDiary from './components/MealDiary';
+import WaterTracker from './components/WaterTracker';
+import ScanActionMenu from './components/ScanActionMenu';
+import FoodSearchModal from './components/FoodSearchModal';
+import QuickTextLoggerModal from './components/QuickTextLoggerModal';
+import UploadModal from './components/UploadModal';
+import LabelScannerModal from './components/LabelScannerModal';
+import AnalyticsTab from './components/AnalyticsTab';
+import AvatarRPGTab from './components/AvatarRPGTab';
+import ProfileSetup from './components/ProfileSetup';
+import Login from './components/Login';
+
+// Services
+import { getTodaySummary, getAvatarStatus, getMealHistory, getStoredUser, logout } from './services/api';
+
+// Initial default Indian diet samples
+const INITIAL_DEMO_MEALS = [
+  {
+    id: 'm-1',
+    meal_type: 'breakfast',
+    itemNames: 'Masala Oats with Chia Seeds & Almonds',
+    total_calories: 260,
+    total_protein: 9.5,
+    total_carbs: 38,
+    total_fats: 7.0,
+    time: '08:45 AM',
+  },
+  {
+    id: 'm-2',
+    meal_type: 'lunch',
+    itemNames: '2 Whole Wheat Rotis, Dal Tadka & Cucumber Salad',
+    total_calories: 410,
+    total_protein: 16.2,
+    total_carbs: 62,
+    total_fats: 9.5,
+    time: '01:30 PM',
+  },
+  {
+    id: 'm-3',
+    meal_type: 'snack',
+    itemNames: 'Roasted Chana & Masala Green Tea',
+    total_calories: 140,
+    total_protein: 8.0,
+    total_carbs: 22,
+    total_fats: 2.5,
+    time: '05:15 PM',
+  },
+];
+
+export default function App() {
+  // Navigation & View states
+  const [view, setView] = useState('auth'); // 'auth' | 'profile' | 'main'
+  const [activeTab, setActiveTab] = useState('diary'); // 'diary' | 'search' | 'analytics' | 'avatar'
+  const [selectedDate, setSelectedDate] = useState('Today');
+  const [isWideMode, setIsWideMode] = useState(false);
+
+  // User & Profile
+  const [user, setUser] = useState(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Health & Nutrition Data
+  const [meals, setMeals] = useState(INITIAL_DEMO_MEALS);
+  const [waterMl, setWaterMl] = useState(1500);
+  const [streakDays, setStreakDays] = useState(5);
+  const [avatar, setAvatar] = useState({ stamina: 85, strength_points: 340, protein_deficit_days: 0 });
+
+  // Modal Launcher States
+  const [isScanMenuOpen, setIsScanMenuOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
+  const [isFoodSearchOpen, setIsFoodSearchOpen] = useState(false);
+  const [isQuickTextOpen, setIsQuickTextOpen] = useState(false);
+  const [activeSlot, setActiveSlot] = useState('lunch');
+
+  // Compute live calorie and macro sums from meals
+  const totals = meals.reduce(
+    (acc, m) => ({
+      calories: acc.calories + (Number(m.total_calories || m.calories) || 0),
+      protein: acc.protein + (Number(m.total_protein || m.protein) || 0),
+      carbs: acc.carbs + (Number(m.total_carbs || m.carbs) || 0),
+      fats: acc.fats + (Number(m.total_fats || m.fats) || 0),
+    }),
+    { calories: 0, protein: 0, carbs: 0, fats: 0 }
+  );
+
+  // User targets
+  const targets = {
+    calorie: user?.daily_calorie_target || 2100,
+    protein: user?.daily_protein_target || 120,
+    carbs: user?.daily_carbs_target || 240,
+    fats: user?.daily_fats_target || 65,
+    water: 2500,
+  };
+
+  // Auth bootstrap
+  useEffect(() => {
+    const stored = getStoredUser();
+    if (stored) {
+      setUser(stored);
+      setView(stored.body_type ? 'main' : 'profile');
+      loadBackendData();
+    } else {
+      setView('auth');
+    }
+    setCheckingAuth(false);
+  }, []);
+
+  const loadBackendData = async () => {
+    try {
+      const [avatarRes, historyRes] = await Promise.allSettled([
+        getAvatarStatus(),
+        getMealHistory(),
+      ]);
+
+      if (avatarRes.status === 'fulfilled' && avatarRes.value?.avatar) {
+        setAvatar(avatarRes.value.avatar);
+      }
+      if (historyRes.status === 'fulfilled' && historyRes.value?.meals?.length > 0) {
+        setMeals(historyRes.value.meals);
+      }
+    } catch (e) {
+      console.warn('Backend sync note: using cached/demo state', e);
+    }
+  };
+
+  // Login handler
+  const handleLogin = (userData) => {
+    setUser(userData);
+    if (userData.body_type) {
+      setView('main');
+      loadBackendData();
+    } else {
+      setView('profile');
+    }
+  };
+
+  // Profile setup handler
+  const handleProfileComplete = (userData) => {
+    setUser((prev) => ({ ...prev, ...userData }));
+    setView('main');
+    loadBackendData();
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+    setView('auth');
+  };
+
+  // Celebrate with confetti
+  const triggerConfetti = () => {
+    confetti({
+      particleCount: 50,
+      spread: 60,
+      origin: { y: 0.8 },
+      colors: ['#10B981', '#F59E0B', '#06B6D4'],
+    });
+  };
+
+  // Add meal item
+  const handleAddMeal = (newMeal) => {
+    setMeals((prev) => [
+      {
+        ...newMeal,
+        id: `meal-${Date.now()}`,
+        time: newMeal.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+      ...prev,
+    ]);
+
+    // Boost avatar strength
+    setAvatar((prev) => ({
+      ...prev,
+      stamina: Math.min(100, prev.stamina + 5),
+      strength_points: prev.strength_points + 25,
+    }));
+
+    triggerConfetti();
+  };
+
+  // Delete meal
+  const handleDeleteMeal = (mealId) => {
+    setMeals((prev) => prev.filter((m, i) => (m.id !== mealId && i !== mealId)));
+  };
+
+  // Water tracking actions
+  const handleAddWater = (amount) => {
+    setWaterMl((prev) => {
+      const next = prev + amount;
+      if (next >= targets.water && prev < targets.water) {
+        triggerConfetti();
+      }
+      return next;
+    });
+  };
+
+  const handleRemoveWater = (amount) => {
+    setWaterMl((prev) => Math.max(0, prev - amount));
+  };
+
+  // Quick slot actions from diary
+  const handleAddFoodToSlot = (slotId) => {
+    setActiveSlot(slotId);
+    setIsFoodSearchOpen(true);
+  };
+
+  const handleSnapSlot = (slotId) => {
+    setActiveSlot(slotId);
+    setIsPhotoModalOpen(true);
+  };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-[#0d0f12] flex items-center justify-center">
+        <div className="w-12 h-12 rounded-full border-3 border-emerald-400/30 border-t-emerald-400 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0d0f12] text-cream flex justify-center selection:bg-emerald-500/30">
+      {/* Background ambient lighting */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[700px] h-[380px] bg-emerald-500/10 rounded-full blur-[160px] pointer-events-none z-0" />
+      <div className="fixed bottom-10 right-10 w-[450px] h-[450px] bg-amber-500/10 rounded-full blur-[170px] pointer-events-none z-0" />
+
+      {/* Screen Routing */}
+      {view === 'auth' && <Login onLogin={handleLogin} />}
+
+      {view === 'profile' && <ProfileSetup onComplete={handleProfileComplete} />}
+
+      {view === 'main' && (
+        <div
+          className={`w-full relative z-10 transition-all duration-300 ${
+            isWideMode ? 'max-w-4xl px-4 sm:px-8' : 'max-w-md px-3 sm:px-4'
+          }`}
+        >
+          {/* Top Navigation Bar */}
+          <Navbar
+            user={user}
+            streakDays={streakDays}
+            healthScore={88}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            onLogout={handleLogout}
+            isWideMode={isWideMode}
+            onToggleWideMode={() => setIsWideMode(!isWideMode)}
+            onOpenProfile={() => setView('profile')}
+          />
+
+          {/* Main Tab Content */}
+          <main className="pt-4 pb-28">
+            <AnimatePresence mode="wait">
+              {/* 1. DIARY / TODAY TAB */}
+              {activeTab === 'diary' && (
+                <motion.div
+                  key="diary"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col gap-5"
+                >
+                  {/* Calorie & Macro Target Ring Hero */}
+                  <CalorieCard
+                    totalCalories={totals.calories}
+                    calorieTarget={targets.calorie}
+                    protein={Math.round(totals.protein)}
+                    proteinTarget={targets.protein}
+                    carbs={Math.round(totals.carbs)}
+                    carbsTarget={targets.carbs}
+                    fats={Math.round(totals.fats)}
+                    fatsTarget={targets.fats}
+                  />
+
+                  {/* Water Hydration Card */}
+                  <WaterTracker
+                    waterMl={waterMl}
+                    waterTarget={targets.water}
+                    onAddWater={handleAddWater}
+                    onRemoveWater={handleRemoveWater}
+                  />
+
+                  {/* 4 Categorized Meal Slots Diary */}
+                  <MealDiary
+                    meals={meals}
+                    onAddFood={handleAddFoodToSlot}
+                    onSnapMeal={handleSnapSlot}
+                    onDeleteMeal={handleDeleteMeal}
+                  />
+                </motion.div>
+              )}
+
+              {/* 2. FOOD HUB SEARCH TAB */}
+              {activeTab === 'search' && (
+                <motion.div
+                  key="search"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col gap-4"
+                >
+                  <div className="p-4 rounded-3xl bg-[#1A1C23]/90 border border-white/[0.08] shadow-md flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-cream">Indian Food Hub</h3>
+                      <p className="text-xs text-cream/50">Explore 500+ Indian dishes & fitness foods</p>
+                    </div>
+                    <button
+                      onClick={() => setIsFoodSearchOpen(true)}
+                      className="px-4 py-2 rounded-2xl bg-emerald-500 text-[#121316] font-bold text-xs shadow-md shadow-emerald-500/20 hover:brightness-110 cursor-pointer"
+                    >
+                      Open Search Hub
+                    </button>
+                  </div>
+
+                  <FoodSearchModal
+                    isOpen={true}
+                    onClose={() => setActiveTab('diary')}
+                    initialSlot={activeSlot}
+                    onLogFoodItem={handleAddMeal}
+                  />
+                </motion.div>
+              )}
+
+              {/* 3. TRENDS & ANALYTICS TAB */}
+              {activeTab === 'analytics' && (
+                <motion.div
+                  key="analytics"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <AnalyticsTab
+                    user={user}
+                    meals={meals}
+                    macros={{
+                      protein: totals.protein,
+                      carbs: totals.carbs,
+                      fats: totals.fats,
+                    }}
+                  />
+                </motion.div>
+              )}
+
+              {/* 4. 3D AVATAR & SOMATOTYPE RPG TAB */}
+              {activeTab === 'avatar' && (
+                <motion.div
+                  key="avatar"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <AvatarRPGTab
+                    avatar={avatar}
+                    user={user}
+                    macros={totals}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </main>
+
+          {/* Floating Bottom Navigation Dock */}
+          <BottomNav
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onOpenScanMenu={() => setIsScanMenuOpen(true)}
+          />
+
+          {/* Central Scan Action Menu Sheet */}
+          <ScanActionMenu
+            isOpen={isScanMenuOpen}
+            onClose={() => setIsScanMenuOpen(false)}
+            onOpenPhotoScanner={() => setIsPhotoModalOpen(true)}
+            onOpenLabelScanner={() => setIsLabelModalOpen(true)}
+            onOpenQuickText={() => setIsQuickTextOpen(true)}
+            onOpenFoodSearch={() => setIsFoodSearchOpen(true)}
+          />
+
+          {/* AI Photo Scanner Modal */}
+          <UploadModal
+            isOpen={isPhotoModalOpen}
+            onClose={() => setIsPhotoModalOpen(false)}
+            initialSlot={activeSlot}
+            onSuccess={(result) => {
+              const loggedMeal = {
+                meal_type: result.meal.meal_type,
+                total_calories: result.meal.total_calories,
+                total_protein: result.meal.total_protein,
+                total_carbs: result.meal.total_carbs,
+                total_fats: result.meal.total_fats,
+                itemNames: result.items.map((i) => i.name).join(', '),
+              };
+              handleAddMeal(loggedMeal);
+            }}
+          />
+
+          {/* Packaged Label & Nutri-Score Scanner Modal */}
+          <LabelScannerModal
+            isOpen={isLabelModalOpen}
+            onClose={() => setIsLabelModalOpen(false)}
+          />
+
+          {/* Food Search Modal */}
+          {activeTab !== 'search' && (
+            <FoodSearchModal
+              isOpen={isFoodSearchOpen}
+              onClose={() => setIsFoodSearchOpen(false)}
+              initialSlot={activeSlot}
+              onLogFoodItem={handleAddMeal}
+            />
+          )}
+
+          {/* Quick Text AI Logger Modal */}
+          <QuickTextLoggerModal
+            isOpen={isQuickTextOpen}
+            onClose={() => setIsQuickTextOpen(false)}
+            initialSlot={activeSlot}
+            onLogMeal={handleAddMeal}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
