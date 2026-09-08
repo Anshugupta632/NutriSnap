@@ -9,23 +9,28 @@ export default function ScanCamera({ onScan, onClose }) {
   useEffect(() => {
     if (hasScanned) return;
 
-    const Scanner = window.instascan || require('instascan');
-    const scanner = new Scanner({
-      video: videoRef.current,
+    const scanner = window.instascan;
+    if (!scanner) return;
+
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    const instaScanner = new scanner({
+      video: videoElement,
       mirror: false,
       scanPeriod: 0.5,
     });
 
-    scanner.addListener('found', (code) => {
+    instaScanner.addListener('found', (code) => {
       setScannedData(code.text);
       setHasScanned(true);
-      scanner.stop();
+      instaScanner.stop();
       onScan(code.text);
     });
 
-    scanner.start(videoRef.current);
-    return () => scanner.stop();
-  }, [onScan, hasScanned]);
+    instaScanner.start(videoElement);
+    return () => instaScanner.stop();
+  }, [onScan]);
 
   if (hasScanned) {
     return null;
