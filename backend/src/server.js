@@ -1,6 +1,6 @@
 ﻿// routes/meals.js (or server.js)
-import express from 'express';
-import { GoogleGenAI, Type } from '@google/genai';
+const express = require('express');
+const { GoogleGenAI, Type } = require('@google/genai');
 
 const router = express.Router();
 const ai = new GoogleGenAI(); // Uses process.env.GEMINI_API_KEY by default
