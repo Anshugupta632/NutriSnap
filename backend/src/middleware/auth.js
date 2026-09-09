@@ -7,11 +7,11 @@ const { supabaseAuth } = require('../config/supabase');
 async function authMiddleware(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Authorization token missing. Please login and try again.' 
+      return res.status(401).json({
+        success: false,
+        error: 'Authorization token missing. Please login and try again.',
       });
     }
 
@@ -19,18 +19,18 @@ async function authMiddleware(req, res, next) {
 
     // Support demo session if requested
     if (token === 'demo-jwt-token-active' || token.startsWith('demo-')) {
-      req.user = { 
-        id: '52d17eb7-e20f-4ebd-bbdf-2ab2d8e0bd9c', 
-        email: 'finaltest3@example.com' 
+      req.user = {
+        id: '52d17eb7-e20f-4ebd-bbdf-2ab2d8e0bd9c',
+        email: 'finaltest3@example.com',
       };
       return next();
     }
 
     if (!supabaseAuth) {
       console.error('supabaseAuth client not configured - SUPABASE_ANON_KEY missing');
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Auth service unavailable' 
+      return res.status(500).json({
+        success: false,
+        error: 'Auth service unavailable',
       });
     }
 
@@ -39,9 +39,9 @@ async function authMiddleware(req, res, next) {
 
     if (error || !user) {
       console.error('Token verification failed:', error?.message);
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid or expired token. Please login again.' 
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token. Please login again.',
       });
     }
 
@@ -56,12 +56,11 @@ async function authMiddleware(req, res, next) {
 
 /**
  * Optional auth - if token exists, verify it; otherwise allow anonymous
- * (For future use)
  */
 async function optionalAuthMiddleware(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ') || !supabaseAuth) {
       req.user = null;
       return next();
@@ -82,4 +81,8 @@ async function optionalAuthMiddleware(req, res, next) {
   }
 }
 
-module.exports = { authMiddleware, optionalAuthMiddleware };
+// Support both: const { authMiddleware } = require(...) AND const authMiddleware = require(...)
+authMiddleware.authMiddleware = authMiddleware;
+authMiddleware.optionalAuthMiddleware = optionalAuthMiddleware;
+
+module.exports = authMiddleware;

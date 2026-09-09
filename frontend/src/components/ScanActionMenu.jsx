@@ -25,9 +25,21 @@ export default function ScanActionMenu({
       },
     },
     {
+      id: 'camera-scan',
+      title: 'Direct Camera Scan',
+      desc: 'Open live camera view for instant image and barcode analysis.',
+      icon: Camera,
+      gradient: 'from-emerald-500 to-emerald-400',
+      badge: 'LIVE VIEW',
+      onClick: () => {
+        onClose();
+        onOpenScanCamera?.();
+      },
+    },
+    {
       id: 'label-scanner',
       title: 'Packaged Label & Nutri-Score',
-      desc: 'Scan barcode or ingredient table to reveal hidden sugars, palm oil & additives.',
+      desc: 'Scan barcode or ingredient table to reveal hidden sugars & additives.',
       icon: ScanBarcode,
       gradient: 'from-amber-500 to-orange-500',
       badge: 'YUKA STYLE',
@@ -62,22 +74,6 @@ export default function ScanActionMenu({
     },
   ];
 
-  // Append optional direct camera scanner action dynamically
-  if (onOpenScanCamera) {
-    actions.push({
-      id: 'camera-scan',
-      title: 'Direct Camera Scan',
-      desc: 'Open camera and scan barcode or QR code directly.',
-      icon: Camera,
-      gradient: 'from-emerald-500 to-emerald-400',
-      badge: 'BARCODE',
-      onClick: () => {
-        onClose();
-        onOpenScanCamera();
-      },
-    });
-  }
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -103,12 +99,12 @@ export default function ScanActionMenu({
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-base font-bold text-cream">Log Your Meal</h3>
+                <h3 className="text-base font-bold text-white">Log Your Meal</h3>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center text-cream/60 hover:text-white transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -122,7 +118,7 @@ export default function ScanActionMenu({
                   <motion.button
                     key={act.id}
                     type="button"
-                    whileHover={{ scale: 1.02, x: 4 }}
+                    whileHover={{ scale: 1.01, x: 2 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={act.onClick}
                     className="w-full text-left p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.15] transition-all flex items-center gap-3.5 group cursor-pointer"
@@ -137,19 +133,19 @@ export default function ScanActionMenu({
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-cream group-hover:text-emerald-300 transition-colors truncate">
+                        <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
                           {act.title}
                         </h4>
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.08] text-cream/70 font-semibold shrink-0">
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/[0.08] text-white/70 font-semibold shrink-0">
                           {act.badge}
                         </span>
                       </div>
-                      <p className="text-xs text-cream/50 mt-0.5 line-clamp-1">
+                      <p className="text-xs text-white/50 mt-0.5 line-clamp-1">
                         {act.desc}
                       </p>
                     </div>
 
-                    <ArrowRight className="w-4 h-4 text-cream/30 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all shrink-0" />
+                    <ArrowRight className="w-4 h-4 text-white/30 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all shrink-0" />
                   </motion.button>
                 );
               })}

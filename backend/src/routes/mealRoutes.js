@@ -6,15 +6,41 @@ const { analyzeMealPhoto } = require('../services/visionService');
 const { supabaseAuth: supabase } = require('../config/supabase');
 const { updateAvatarAfterMeal } = require('../services/avatarService');
 const { scanIngredientLabel } = require('../services/sugarScannerService');
-const { authMiddleware } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
 
 // Multer setup - photo temporarily saved to 'uploads' folder
 const upload = multer({ dest: 'uploads/' });
 
-// Apply auth middleware to all routes
-router.use(authMiddleware);
+// Analyze vision from base64 data URL (for camera scan) - no auth required
+router.post('/analyze-vision', async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ success: false, error: 'Image data is required' });
+    }
 
-router.post('/log-meal', upload.single('photo'), async (req, res) => {
+    // Extract mime type and base64 data from data URL
+    const mimeType = image.match(/data:(.+\base64)/i)?.[1] || 'image/jpeg';
+    const base64Data = image.split(',')[1];
+
+    // Write to temp file for vision service
+    const tempPath = `uploads/temp_${Date.now()}.jpg`;
+    fs.writeFileSync(tempPath, Buffer.from(base64Data, 'base64'));
+
+    const nutritionData = await analyzeMealPhoto(tempPath, mimeType);
+
+    // Clean up temp file
+    fs.unlinkSync(tempPath);
+
+    res.json({ success: true, ...nutritionData });
+  } catch (error) {
+    console.error('Vision analysis error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Log meal with photo - requires auth
+router.post('/log-meal', authMiddleware, upload.single('photo'), async (req, res) => {
   let mealId = null;
   let filePath = null;
   const userId = req.user.id; // Verified user_id from JWT
@@ -96,11 +122,10 @@ router.post('/log-meal', upload.single('photo'), async (req, res) => {
     }
     res.status(500).json({ success: false, error: error.message });
   }
-  
 });
 
-// Get today's meal totals
-router.get('/today-summary', async (req, res) => {
+// Get today's meal totals - requires auth
+router.get('/today-summary', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -136,7 +161,7 @@ router.get('/today-summary', async (req, res) => {
       { calories: 0, protein: 0, carbs: 0, fats: 0 }
     );
 
-    // Default targets if user hasn't set them (will come from Somatotype engine later)
+    // Default targets if user hasn't set them
     const proteinTarget = user.daily_protein_target || 100;
     const carbsTarget = user.daily_calorie_target || 250;
     const fatsTarget = user.daily_fats_target || 65;
@@ -181,8 +206,8 @@ router.post('/scan-label', upload.single('photo'), async (req, res) => {
   }
 });
 
-// Meal history endpoint - get all user meals
-router.get('/meal-history', async (req, res) => {
+// Meal history endpoint - get all user meals - requires auth
+router.get('/meal-history', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 

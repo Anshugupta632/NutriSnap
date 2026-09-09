@@ -1,38 +1,77 @@
-﻿require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
+﻿// routes/meals.js (or server.js)
+import express from 'express';
+import { GoogleGenAI, Type } from '@google/genai';
 
-const authRoutes = require('./routes/authRoutes');
-const mealRoutes = require('./routes/mealRoutes');
-const userRoutes = require('./routes/userRoutes');
+const router = express.Router();
+const ai = new GoogleGenAI(); // Uses process.env.GEMINI_API_KEY by default
 
-const app = express();
-const PORT = process.env.PORT || 5000;
+router.post('/analyze-vision', async (req, res) => {
+  try {
+    const { image } = req.body; // Expects data URL "data:image/jpeg;base64,..."
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+    if (!image) {
+      return res.status(400).json({ error: 'Image data is required.' });
+    }
 
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+    // Extract base64 payload and mime type
+    const matches = image.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({ error: 'Invalid base64 image format.' });
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+
+    // Call Gemini 2.5 Flash with structured output schema
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Data,
+          },
+        },
+        'Analyze this meal photo. Identify the primary food item, estimated total calories, and macronutrient breakdown in grams (protein, carbs, fats).',
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            items: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  portion: { type: Type.STRING },
+                },
+                required: ['name'],
+              },
+            },
+            total_calories: { type: Type.NUMBER },
+            total_protein: { type: Type.NUMBER },
+            total_carbs: { type: Type.NUMBER },
+            total_fats: { type: Type.NUMBER },
+          },
+          required: [
+            'items',
+            'total_calories',
+            'total_protein',
+            'total_carbs',
+            'total_fats',
+          ],
+        },
+      },
+    });
+
+    const parsedData = JSON.parse(response.text);
+    return res.status(200).json(parsedData);
+  } catch (error) {
+    console.error('Vision analysis error:', error);
+    return res.status(500).json({ error: 'Failed to analyze meal image.' });
+  }
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api', mealRoutes);
-app.use('/api', userRoutes);
-
-app.use((req, res) => {
-  res.status(404).json({ success: false, error: 'Route not found' });
-});
-
-app.use((err, req, res, next) => {
-  console.error('Unhandled Server Error:', err);
-  res.status(500).json({
-    success: false,
-    error: err.message || 'Internal server error',
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+export default router;

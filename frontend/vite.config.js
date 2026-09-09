@@ -10,6 +10,10 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        secure: false,
+        // Prevents timeouts while waiting for vision AI responses
+        timeout: 60000,
+        proxyTimeout: 60000,
       },
     },
   },

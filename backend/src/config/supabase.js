@@ -5,8 +5,8 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment variables.');
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY in environment variables.');
 }
 
 // Admin/service client - service role key, bypasses RLS.
@@ -25,7 +25,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 // (login, signup auto-login, refresh, logout). A fresh client per call means
 // signInWithPassword etc. can never pollute the shared admin client's state.
 function createAuthClient() {
-  return createClient(supabaseUrl, supabaseAnonKey || supabaseServiceKey, {
+  return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

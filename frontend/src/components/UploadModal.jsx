@@ -17,9 +17,10 @@ export default function UploadModal({ isOpen, onClose, onSuccess, initialSlot = 
     handleClose,
   } = usePhotoModal();
 
-  const [mealType, setMealType] = useState(initialSlot);
+const [mealType, setMealType] = useState(initialSlot);
   const [detectionStep, setDetectionStep] = useState('upload'); // 'upload' | 'scanning' | 'review'
   const [detectedData, setDetectedData] = useState(null);
+  const [fromCamera, setFromCamera] = useState(false);
 
   if (!isOpen) return null;
 

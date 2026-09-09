@@ -1,6 +1,6 @@
 const PDFDocument = require('pdfkit');
 
-function generateMonthlyReport(userData, meals, avatarStats) {
+function generateMonthlyReport(userData, meals, avatarStats, res) {
   const doc = new PDFDocument({ margin: 50 });
 
   // Header
@@ -71,8 +71,8 @@ function generateMonthlyReport(userData, meals, avatarStats) {
   doc.text(`Total Carbs: ${totals.carbs.toFixed(1)} g`);
   doc.text(`Total Fats: ${totals.fats.toFixed(1)} g`);
 
+  doc.pipe(res);
   doc.end();
-  return doc;
 }
 
 module.exports = { generateMonthlyReport };

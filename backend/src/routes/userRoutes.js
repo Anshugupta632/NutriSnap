@@ -3,9 +3,9 @@ const router = express.Router();
 const { supabaseAuth: supabase } = require('../config/supabase');
 const { calculateTargets } = require('../services/somatotypeService');
 const { generateMonthlyReport } = require('../services/pdfService');
-const { authMiddleware } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
 
-// Apply auth middleware to all routes
+// Apply auth middleware to all user routes
 router.use(authMiddleware);
 
 // Profile setup - calculate targets based on body type, weight, height, age, gender
@@ -24,8 +24,7 @@ router.post('/setup-profile', async (req, res) => {
     // Height, age, gender optional but needed for better calculation
     const targets = calculateTargets(body_type, weight_kg, height_cm, age, gender);
 
-    // Use UPDATE, not upsert - the user row already exists from signup.
-    // Upsert would fail NOT NULL checks on columns (like email) not in this payload.
+    // Use UPDATE, not upsert
     const { data, error } = await supabase
       .from('users')
       .update({
@@ -65,6 +64,7 @@ router.get('/user', async (req, res) => {
 
     res.json({ success: true, user: data });
   } catch (error) {
+    console.error('Fetch user error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -95,10 +95,12 @@ router.get('/avatar', async (req, res) => {
 
     res.json({ success: true, avatar });
   } catch (error) {
+    console.error('Fetch avatar error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+// Download monthly PDF report
 router.get('/monthly-report', async (req, res) => {
   try {
     const userId = req.user.id;
@@ -135,8 +137,7 @@ router.get('/monthly-report', async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=nutrisnap-report.pdf');
 
-    const doc = generateMonthlyReport(user, meals, avatar);
-    doc.pipe(res);
+    generateMonthlyReport(user, meals, avatar, res);
   } catch (error) {
     console.error('PDF generation error:', error);
     res.status(500).json({ success: false, error: error.message });

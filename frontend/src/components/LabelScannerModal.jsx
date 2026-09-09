@@ -30,7 +30,7 @@ export default function LabelScannerModal({ isOpen, onClose }) {
     setIsLoading(true);
     setError(null);
 
-    try {
+try {
       const result = await scanPacketLabel(selectedFile);
       setScanResult(result);
     } catch (err) {
@@ -45,6 +45,8 @@ export default function LabelScannerModal({ isOpen, onClose }) {
           risk_level: 'High',
           message: 'Warning: Contains over 5 teaspoons of sugar per 100g serving.',
         },
+        hidden_sugars_found: ['Invert Sugar Syrup'],
+        has_hidden_sugar: true,
         additives: [
           { name: 'INS 503(ii) Ammonium Bicarbonate', risk: 'Low', desc: 'Acidity regulator & raising agent' },
           { name: 'Refined Palm Oil', risk: 'High', desc: 'High saturated fatty acid content, linked to inflammation' },

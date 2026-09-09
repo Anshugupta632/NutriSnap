@@ -22,12 +22,15 @@ import Login from './components/Login';
 // Services
 import { getAvatarStatus, getMealHistory, getStoredUser, logout } from './services/api';
 
-// Initial default Indian diet samples
 const INITIAL_DEMO_MEALS = [
   {
     id: 'm-1',
     meal_type: 'breakfast',
-    itemNames: 'Masala Oats with Chia Seeds & Almonds',
+    meal_name: 'Masala Oats & Seeds',
+    items: [
+      { name: 'Masala Oats', quantity: '1 bowl', calories: 260, protein: 9.5, carbs: 38, fats: 7.0 },
+      { name: 'Chia Seeds & Almonds', quantity: 'sprinkle', calories: 0, protein: 1, carbs: 0, fats: 0 }
+    ],
     total_calories: 260,
     total_protein: 9.5,
     total_carbs: 38,
@@ -37,7 +40,12 @@ const INITIAL_DEMO_MEALS = [
   {
     id: 'm-2',
     meal_type: 'lunch',
-    itemNames: '2 Whole Wheat Rotis, Dal Tadka & Cucumber Salad',
+    meal_name: 'Roti & Dal Lunch',
+    items: [
+      { name: '2 Whole Wheat Rotis', quantity: '2 pcs', calories: 300, protein: 12, carbs: 45, fats: 5.0 },
+      { name: 'Dal Tadka', quantity: '1 katori', calories: 120, protein: 4.2, carbs: 15, fats: 4.5 },
+      { name: 'Cucumber Salad', quantity: '1 bowl', calories: 50, protein: 0, carbs: 5, fats: 0 }
+    ],
     total_calories: 410,
     total_protein: 16.2,
     total_carbs: 62,
@@ -47,7 +55,11 @@ const INITIAL_DEMO_MEALS = [
   {
     id: 'm-3',
     meal_type: 'snack',
-    itemNames: 'Roasted Chana & Masala Green Tea',
+    meal_name: 'Evening Snack',
+    items: [
+      { name: 'Roasted Chana', quantity: '1 bowl', calories: 140, protein: 8.0, carbs: 22, fats: 2.5 },
+      { name: 'Masala Green Tea', quantity: '1 cup', calories: 0, protein: 0, carbs: 0, fats: 0 }
+    ],
     total_calories: 140,
     total_protein: 8.0,
     total_carbs: 22,
@@ -57,23 +69,21 @@ const INITIAL_DEMO_MEALS = [
 ];
 
 export default function App() {
-  // Navigation & View states
-  const [view, setView] = useState('auth'); // 'auth' | 'profile' | 'main'
-  const [activeTab, setActiveTab] = useState('diary'); // 'diary' | 'search' | 'analytics' | 'avatar'
+  // 1. Top-Level State Hooks
+  const [view, setView] = useState('auth');
+  const [activeTab, setActiveTab] = useState('diary');
   const [selectedDate, setSelectedDate] = useState('Today');
   const [isWideMode, setIsWideMode] = useState(false);
 
-  // User & Profile
   const [user, setUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // Health & Nutrition Data
   const [meals, setMeals] = useState(INITIAL_DEMO_MEALS);
   const [waterMl, setWaterMl] = useState(1500);
   const [streakDays, setStreakDays] = useState(5);
   const [avatar, setAvatar] = useState({ stamina: 85, strength_points: 340, protein_deficit_days: 0 });
 
-  // Modal Launcher States
+  // Modal Control States
   const [isScanMenuOpen, setIsScanMenuOpen] = useState(false);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
@@ -82,7 +92,7 @@ export default function App() {
   const [isQuickTextOpen, setIsQuickTextOpen] = useState(false);
   const [activeSlot, setActiveSlot] = useState('lunch');
 
-  // Compute live calorie and macro sums from meals
+  // 2. Computed Live Totals
   const totals = meals.reduce(
     (acc, m) => ({
       calories: acc.calories + (Number(m.total_calories || m.calories) || 0),
@@ -93,7 +103,6 @@ export default function App() {
     { calories: 0, protein: 0, carbs: 0, fats: 0 }
   );
 
-  // User targets
   const targets = {
     calorie: user?.daily_calorie_target || 2100,
     protein: user?.daily_protein_target || 120,
@@ -102,7 +111,7 @@ export default function App() {
     water: 2500,
   };
 
-  // Auth bootstrap
+  // 3. Effects & API Sync
   useEffect(() => {
     const stored = getStoredUser();
     if (stored) {
@@ -129,7 +138,7 @@ export default function App() {
         setMeals(historyRes.value.meals);
       }
     } catch (e) {
-      console.warn('Backend sync note: using cached/demo state', e);
+      console.warn('Backend sync note: using local state', e);
     }
   };
 
@@ -184,19 +193,41 @@ export default function App() {
     triggerConfetti();
   };
 
-  // AI Vision Camera Payload Handler
+  // Detailed AI Vision Handler
   const handleCameraVisionScan = (visionResult) => {
-    const itemNames = visionResult.items?.length
-      ? visionResult.items.map((i) => i.name).join(', ')
-      : visionResult.itemNames || 'AI Vision Meal';
+    const parsedItems = visionResult.items && visionResult.items.length > 0
+      ? visionResult.items
+      : [
+          {
+            name: visionResult.meal_name || visionResult.itemNames || 'Scanned Meal Item',
+            quantity: '1 serving',
+            calories: Number(visionResult.total_calories || 0),
+            protein: Number(visionResult.total_protein || 0),
+            carbs: Number(visionResult.total_carbs || 0),
+            fats: Number(visionResult.total_fats || 0),
+          },
+        ];
+
+    const itemsWithNames = parsedItems.map(item => ({
+      item_name: item.name,
+      calories: item.calories,
+      total_protein: item.protein,
+      total_carbs: item.carbs,
+      total_fats: item.fats,
+    }));
 
     const scannedMeal = {
       meal_type: visionResult.meal_type || activeSlot,
-      itemNames,
+      meal_name: visionResult.meal_name || parsedItems[0]?.name || 'AI Vision Scan',
+      item_names: parsedItems.map(item => item.name).join(', '),
+      meal_items: itemsWithNames,
+      calories: Number(visionResult.total_calories || 0),
       total_calories: Number(visionResult.total_calories || 0),
       total_protein: Number(visionResult.total_protein || 0),
       total_carbs: Number(visionResult.total_carbs || 0),
       total_fats: Number(visionResult.total_fats || 0),
+      health_score: visionResult.health_score || 88,
+      health_tip: visionResult.health_tip || 'Balanced nutrition profile.',
     };
 
     handleAddMeal(scannedMeal);
@@ -228,7 +259,7 @@ export default function App() {
 
   const handleSnapSlot = (slotId) => {
     setActiveSlot(slotId);
-    setIsScanCameraOpen(true);
+    setIsPhotoModalOpen(true);
   };
 
   if (checkingAuth) {
@@ -241,13 +272,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0d0f12] text-cream flex justify-center selection:bg-emerald-500/30">
-      {/* Background ambient lighting */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[700px] h-[380px] bg-emerald-500/10 rounded-full blur-[160px] pointer-events-none z-0" />
       <div className="fixed bottom-10 right-10 w-[450px] h-[450px] bg-amber-500/10 rounded-full blur-[170px] pointer-events-none z-0" />
 
-      {/* Screen Routing */}
       {view === 'auth' && <Login onLogin={handleLogin} />}
-
       {view === 'profile' && <ProfileSetup onComplete={handleProfileComplete} />}
 
       {view === 'main' && (
@@ -256,7 +284,6 @@ export default function App() {
             isWideMode ? 'max-w-4xl px-4 sm:px-8' : 'max-w-md px-3 sm:px-4'
           }`}
         >
-          {/* Top Navigation Bar */}
           <Navbar
             user={user}
             streakDays={streakDays}
@@ -269,10 +296,8 @@ export default function App() {
             onOpenProfile={() => setView('profile')}
           />
 
-          {/* Main Tab Content */}
           <main className="pt-4 pb-28">
             <AnimatePresence mode="wait">
-              {/* 1. DIARY TAB */}
               {activeTab === 'diary' && (
                 <motion.div
                   key="diary"
@@ -309,7 +334,6 @@ export default function App() {
                 </motion.div>
               )}
 
-              {/* 2. FOOD SEARCH TAB */}
               {activeTab === 'search' && (
                 <motion.div
                   key="search"
@@ -342,7 +366,6 @@ export default function App() {
                 </motion.div>
               )}
 
-              {/* 3. ANALYTICS TAB */}
               {activeTab === 'analytics' && (
                 <motion.div
                   key="analytics"
@@ -363,7 +386,6 @@ export default function App() {
                 </motion.div>
               )}
 
-              {/* 4. AVATAR RPG TAB */}
               {activeTab === 'avatar' && (
                 <motion.div
                   key="avatar"
@@ -382,22 +404,21 @@ export default function App() {
             </AnimatePresence>
           </main>
 
-          {/* Bottom Dock Navigation */}
           <BottomNav
             activeTab={activeTab}
             onTabChange={setActiveTab}
             onOpenScanMenu={() => setIsScanMenuOpen(true)}
           />
 
-          {/* Modal Overlays */}
+          {/* Action Menu Component with All Handlers Connected */}
           <ScanActionMenu
             isOpen={isScanMenuOpen}
             onClose={() => setIsScanMenuOpen(false)}
+            onOpenScanCamera={() => setIsScanCameraOpen(true)}
             onOpenPhotoScanner={() => setIsPhotoModalOpen(true)}
             onOpenLabelScanner={() => setIsLabelModalOpen(true)}
             onOpenQuickText={() => setIsQuickTextOpen(true)}
             onOpenFoodSearch={() => setIsFoodSearchOpen(true)}
-            onOpenScanCamera={() => setIsScanCameraOpen(true)}
           />
 
           <UploadModal
@@ -406,12 +427,13 @@ export default function App() {
             initialSlot={activeSlot}
             onSuccess={(result) => {
               const loggedMeal = {
-                meal_type: result.meal.meal_type,
-                total_calories: result.meal.total_calories,
-                total_protein: result.meal.total_protein,
-                total_carbs: result.meal.total_carbs,
-                total_fats: result.meal.total_fats,
-                itemNames: result.items.map((i) => i.name).join(', '),
+                meal_type: result.meal?.meal_type || activeSlot,
+                meal_name: result.meal_name || 'AI Photo Meal',
+                items: result.items || [],
+                total_calories: result.meal?.total_calories || result.total_calories || 0,
+                total_protein: result.meal?.total_protein || result.total_protein || 0,
+                total_carbs: result.meal?.total_carbs || result.total_carbs || 0,
+                total_fats: result.meal?.total_fats || result.total_fats || 0,
               };
               handleAddMeal(loggedMeal);
             }}

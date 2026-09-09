@@ -27,7 +27,12 @@ export async function loginWithEmail(email, password) {
 }
 
 export async function signupWithEmail(email, password, firstName, lastName) {
-  const response = await axios.post(`${API_BASE_URL}/api/auth/signup`, { email, password, first_name: firstName, last_name: lastName });
+  const response = await axios.post(`${API_BASE_URL}/api/auth/signup`, {
+    email,
+    password,
+    first_name: firstName,
+    last_name: lastName,
+  });
   return response.data;
 }
 
@@ -49,12 +54,13 @@ export function setStoredUser(user) {
   localStorage.setItem('nutrisnap_user', JSON.stringify(user));
 }
 
+// Meal Endpoints (/api/meals)
 export async function logMealPhoto(photoFile, mealType) {
   const formData = new FormData();
   formData.append('photo', photoFile);
   formData.append('meal_type', mealType);
 
-  const response = await api.post('/api/log-meal', formData, {
+  const response = await api.post('/api/meals/log-meal', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
@@ -62,17 +68,7 @@ export async function logMealPhoto(photoFile, mealType) {
 }
 
 export async function getTodaySummary() {
-  const response = await api.get('/api/today-summary');
-  return response.data;
-}
-
-export async function getUserProfile() {
-  const response = await api.get('/api/user');
-  return response.data;
-}
-
-export async function getAvatarStatus() {
-  const response = await api.get('/api/avatar');
+  const response = await api.get('/api/meals/today-summary');
   return response.data;
 }
 
@@ -80,7 +76,7 @@ export async function scanLabel(photoFile) {
   const formData = new FormData();
   formData.append('photo', photoFile);
 
-  const response = await api.post('/api/scan-label', formData, {
+  const response = await api.post('/api/meals/scan-label', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
@@ -89,8 +85,24 @@ export async function scanLabel(photoFile) {
 
 export const scanPacketLabel = scanLabel;
 
+export async function getMealHistory() {
+  const response = await api.get('/api/meals/meal-history');
+  return response.data;
+}
+
+// User Profile Endpoints (/api/user)
+export async function getUserProfile() {
+  const response = await api.get('/api/user/user');
+  return response.data;
+}
+
+export async function getAvatarStatus() {
+  const response = await api.get('/api/user/avatar');
+  return response.data;
+}
+
 export async function setupProfile({ body_type, weight_kg, height_cm, age, gender }) {
-  const response = await api.post('/api/setup-profile', {
+  const response = await api.post('/api/user/setup-profile', {
     body_type,
     weight_kg,
     height_cm,
@@ -100,13 +112,8 @@ export async function setupProfile({ body_type, weight_kg, height_cm, age, gende
   return response.data;
 }
 
-export async function getMealHistory() {
-  const response = await api.get('/api/meal-history');
-  return response.data;
-}
-
 export async function downloadMonthlyReport() {
-  const response = await api.get('/api/monthly-report', {
+  const response = await api.get('/api/user/monthly-report', {
     responseType: 'blob',
   });
   return response.data;

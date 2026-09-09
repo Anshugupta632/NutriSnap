@@ -1,6 +1,7 @@
 ﻿const express = require('express');
 const router = express.Router();
 const { supabaseAuth, supabaseService, createAuthClient } = require('../config/supabase');
+const authMiddleware = require('../middleware/auth');
 
 /**
  * Helper to validate email format
@@ -74,8 +75,7 @@ router.post('/signup', async (req, res) => {
       console.error('Avatar stats creation error:', avatarError);
     }
 
-    // Admin createUser does not return an active session token.
-    // Authenticate the user immediately to issue access and refresh tokens.
+    // Authenticate user immediately to issue access and refresh tokens
     const { data: sessionData, error: sessionError } = await createAuthClient().auth.signInWithPassword({
       email: trimmedEmail,
       password,
@@ -131,8 +131,8 @@ router.post('/login', async (req, res) => {
         {
           id: userId,
           email: trimmedEmail,
-          first_name: userMeta.first_name,
-          last_name: userMeta.last_name,
+          first_name: userMeta.first_name || null,
+          last_name: userMeta.last_name || null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'id' }
@@ -151,6 +151,29 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error during login' });
+  }
+});
+
+// Get current logged-in user details
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data: profile, error } = await supabaseService
+      .from('users')
+      .select('*, avatar_stats(*)')
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      user: profile,
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
